@@ -59,7 +59,6 @@
     <a class="btn" id="join" href="#">Join server</a>
     <div class="row">
       <button class="ghost" id="copybtn" type="button">Copy connect command</button>
-      <button class="ghost" id="retry" type="button">Try again</button>
     </div>
     <div class="copyfield" id="copyfield"><code id="concmd"></code></div>
     <p class="hint" id="hint">Your browser may ask "Open Steam?" — that's expected. Nothing is sent to any server: the connect details live only in this link, in your browser.</p>
@@ -122,15 +121,46 @@
   window.addEventListener('blur', markLaunched);
   window.addEventListener('pagehide', markLaunched);
 
-  // Auto-attempt once on load; the visible Join button is the fallback for
-  // browsers that require a direct click for protocol handlers.
+  // Auto-attempt the steam:// handoff once on load. The visible Join button is the
+  // fallback AND the retry — clicking it just re-fires the same link — for browsers
+  // that require a direct click for protocol handlers.
   setTimeout(go, 350);
   document.getElementById('join').addEventListener('click', function(){ /* href does it */ });
-  document.getElementById('retry').addEventListener('click', go);
+
+  // Copy the connect command for the user as early as the browser allows. Clipboard
+  // writes generally require a user gesture, so the on-load attempt is best-effort
+  // and usually blocked — we then copy on the FIRST click/keypress. Once it lands we
+  // reveal the command and mark the button. steam:// can fail (notably for SDR relay
+  // addresses), so having the console command on the clipboard is the safety net.
+  var copied = false;
+  function doCopy(){
+    return (navigator.clipboard && navigator.clipboard.writeText)
+      ? navigator.clipboard.writeText(human) : Promise.reject();
+  }
+  function markCopied(){
+    copied = true;
+    document.getElementById('copyfield').style.display = 'block';
+    document.getElementById('copybtn').textContent = 'Copied ✓';
+  }
+  doCopy().then(markCopied).catch(function(){ /* needs a gesture; retried below */ });
+  function onGesture(){
+    if(copied) return;
+    doCopy().then(function(){
+      markCopied();
+      document.removeEventListener('pointerdown', onGesture);
+      document.removeEventListener('keydown', onGesture);
+    }).catch(function(){});
+  }
+  document.addEventListener('pointerdown', onGesture);
+  document.addEventListener('keydown', onGesture);
+
   document.getElementById('copybtn').addEventListener('click', function(){
-    var f = document.getElementById('copyfield'); f.style.display='block';
-    try{ navigator.clipboard.writeText(human); this.textContent='Copied ✓'; }
-    catch(e){ this.textContent='Select & copy ↓'; }
+    var btn = this;
+    doCopy().then(markCopied).catch(function(){
+      // No Clipboard API (old browser) — reveal the field so it can be selected.
+      document.getElementById('copyfield').style.display = 'block';
+      btn.textContent = 'Select & copy ↓';
+    });
   });
 })();
 </script>
