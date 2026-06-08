@@ -31,6 +31,8 @@
   .spin{display:inline-block;width:15px;height:15px;border:2px solid #5a4f3f;border-top-color:var(--amber);
     border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
   @keyframes sp{to{transform:rotate(360deg)}}
+  .check{display:inline-block;color:#3fbf6b;font-weight:900;margin-right:8px;animation:pop .25s ease-out}
+  @keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
   .btn{display:block;width:100%;text-align:center;text-decoration:none;border:none;cursor:pointer;
     background:#2f7d46;color:#fff;font-family:var(--sans);font-weight:700;font-size:16px;padding:13px;border-radius:4px;
     transition:background .12s}
@@ -102,6 +104,23 @@
   document.getElementById('concmd').textContent = human;
 
   function go(){ window.location.href = steam; }
+
+  // A web page gets NO success callback from the OS steam:// handler. The one
+  // reliable signal that the handoff actually took is the browser losing focus /
+  // the tab going hidden as Steam comes to the foreground — so treat that as
+  // success and swap the spinner for a green check. It's a heuristic, not a
+  // guarantee (the Join/copy fallbacks stay), but it's the standard "opened in
+  // app" cue. Listeners are armed before the auto-attempt; once fired we latch.
+  var launched = false;
+  function markLaunched(){
+    if(launched) return;
+    launched = true;
+    document.getElementById('title').innerHTML = '<span class="check">✓</span>Steam launched';
+    document.getElementById('sub').textContent = 'Connecting you to the server — you can close this tab.';
+  }
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) markLaunched(); });
+  window.addEventListener('blur', markLaunched);
+  window.addEventListener('pagehide', markLaunched);
 
   // Auto-attempt once on load; the visible Join button is the fallback for
   // browsers that require a direct click for protocol handlers.
